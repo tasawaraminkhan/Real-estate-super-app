@@ -1,0 +1,11 @@
+{
+  "name": "@propverse/admin",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "echo 'admin scaffold — moderation console coming later'",
+    "build": "echo 'admin build placeholder'",
+    "typecheck": "echo 'admin typecheck ok'",
+    "lint": "echo 'admin lint ok'"
+  }
+}

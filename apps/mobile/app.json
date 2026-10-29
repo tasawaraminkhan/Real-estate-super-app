@@ -1,0 +1,23 @@
+{
+  "expo": {
+    "name": "PropVerse",
+    "slug": "propverse",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "scheme": "propverse",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "backgroundColor": "#0D6B5F"
+    },
+    "android": {
+      "package": "com.propverse.app",
+      "adaptiveIcon": {
+        "backgroundColor": "#0D6B5F"
+      }
+    },
+    "ios": {
+      "bundleIdentifier": "com.propverse.app"
+    },
+    "plugins": ["expo-router"]
+  }
+}
