@@ -12,7 +12,7 @@ jobs:
   build-apk:
     name: Build PropVerse APK
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 60
 
     steps:
       - name: Checkout
@@ -29,32 +29,47 @@ jobs:
           distribution: temurin
           java-version: 17
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
+      - name: Install Android SDK command-line tools
+        run: |
+          mkdir -p $HOME/android-sdk/cmdline-tools
+          curl -fsSL https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip -o /tmp/cmdtools.zip
+          unzip -q /tmp/cmdtools.zip -d $HOME/android-sdk/cmdline-tools
+          mv $HOME/android-sdk/cmdline-tools/cmdline-tools $HOME/android-sdk/cmdline-tools/latest
+          echo "ANDROID_HOME=$HOME/android-sdk" >> $GITHUB_ENV
+          echo "ANDROID_SDK_ROOT=$HOME/android-sdk" >> $GITHUB_ENV
+          echo "$HOME/android-sdk/cmdline-tools/latest/bin" >> $GITHUB_PATH
+          echo "$HOME/android-sdk/platform-tools" >> $GITHUB_PATH
+
+      - name: Install SDK packages
+        run: |
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0" "ndk;26.1.10909125"
 
       - name: Install mobile dependencies
         working-directory: apps/mobile
         run: npm install
 
-      - name: Expo prebuild (generate android/)
+      - name: Expo prebuild
         working-directory: apps/mobile
         run: npx expo prebuild --platform android --non-interactive
         env:
           EXPO_NO_TELEMETRY: 1
-          CI: 1
+          CI: "1"
+          ANDROID_HOME: ${{ env.ANDROID_HOME }}
 
       - name: Gradle assembleDebug
         working-directory: apps/mobile/android
         run: |
           chmod +x gradlew
-          ./gradlew assembleDebug --no-daemon -x lint
+          ./gradlew assembleDebug --no-daemon -x lint --stacktrace
         env:
-          NODE_ENV: production
+          ANDROID_HOME: ${{ env.ANDROID_HOME }}
+          ANDROID_SDK_ROOT: ${{ env.ANDROID_HOME }}
 
       - name: Copy APK
         run: |
           APK=$(find apps/mobile/android -name "*debug*.apk" | head -1)
-          echo "APK path: $APK"
+          echo "APK: $APK"
           ls -lh "$APK"
           cp "$APK" ./propverse-0.1.0-debug.apk
 
