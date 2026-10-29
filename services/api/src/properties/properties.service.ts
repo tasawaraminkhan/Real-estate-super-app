@@ -1,59 +1,64 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, NotFoundException } from "@nestjs/common";
+import { PrismaService } from "../prisma/prisma.service";
 
-/**
- * Placeholder service — real Prisma queries come in P04/P06.
- * For now returns static seed-style data so the vertical slice is runnable.
- */
 @Injectable()
 export class PropertiesService {
-  private readonly sample = [
-    {
-      id: "00000000-0000-4000-8000-000000000001",
-      title: "10 Marla Plot — DHA Phase 5, Lahore",
-      purpose: "SALE",
-      type: "PLOT",
-      areaValue: 10,
-      areaUnit: "MARLA",
-      priceAmount: 2450000000, // 2.45 Cr in paisa
-      currency: "PKR",
-      city: "Lahore",
-      society: "DHA Phase 5",
-      status: "ACTIVE",
-      latitude: 31.4697,
-      longitude: 74.4081,
-    },
-    {
-      id: "00000000-0000-4000-8000-000000000002",
-      title: "5 Marla House — Bahria Town Karachi",
-      purpose: "SALE",
-      type: "HOUSE",
-      areaValue: 5,
-      areaUnit: "MARLA",
-      priceAmount: 1850000000,
-      currency: "PKR",
-      city: "Karachi",
-      society: "Bahria Town",
-      status: "ACTIVE",
-      latitude: 25.0124,
-      longitude: 67.3121,
-    },
-  ];
+  constructor(private readonly prisma: PrismaService) {}
 
-  findAll(page = 1, limit = 20) {
-    const start = (page - 1) * limit;
-    const items = this.sample.slice(start, start + limit);
+  async findAll(page = 1, limit = 20) {
+    const take = Math.min(50, limit);
+    const skip = (page - 1) * take;
+    const where = { status: "ACTIVE" as const, deletedAt: null };
+
+    const [items, total] = await Promise.all([
+      this.prisma.property.findMany({
+        where,
+        skip,
+        take,
+        orderBy: { publishedAt: "desc" },
+        include: {
+          society: { select: { id: true, name: true } },
+          city: { select: { id: true, name: true } },
+          media: { take: 3, orderBy: { sortOrder: "asc" } },
+        },
+      }),
+      this.prisma.property.count({ where }),
+    ]);
+
     return {
-      items,
-      pageInfo: {
-        page,
-        limit,
-        total: this.sample.length,
-        hasMore: start + limit < this.sample.length,
-      },
+      items: items.map((p) => this.serialize(p)),
+      pageInfo: { page, limit: take, total, hasMore: skip + take < total },
     };
   }
 
-  findOne(id: string) {
-    return this.sample.find((p) => p.id === id) ?? null;
+  async findOne(id: string) {
+    const p = await this.prisma.property.findFirst({
+      where: { id, deletedAt: null },
+      include: {
+        society: true,
+        city: true,
+        media: { orderBy: { sortOrder: "asc" } },
+        owner: {
+          select: { id: true, fullName: true, phone: true, verificationStatus: true },
+        },
+      },
+    });
+    if (!p) {
+      throw new NotFoundException({
+        error: { code: "NOT_FOUND", message: "Property not found" },
+      });
+    }
+    void this.prisma.property
+      .update({ where: { id }, data: { viewsCount: { increment: 1 } } })
+      .catch(() => undefined);
+    return this.serialize(p);
+  }
+
+  private serialize(p: Record<string, unknown>) {
+    const out = { ...p } as Record<string, unknown>;
+    for (const key of ["priceAmount", "downPayment", "monthlyInstallment"]) {
+      if (typeof out[key] === "bigint") out[key] = (out[key] as bigint).toString();
+    }
+    return out;
   }
 }

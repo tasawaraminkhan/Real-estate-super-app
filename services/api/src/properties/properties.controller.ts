@@ -10,22 +10,15 @@ export class PropertiesController {
   @Get()
   @ApiQuery({ name: "page", required: false })
   @ApiQuery({ name: "limit", required: false })
-  list(
-    @Query("page") page?: string,
-    @Query("limit") limit?: string,
-  ) {
+  list(@Query("page") page?: string, @Query("limit") limit?: string) {
     return this.propertiesService.findAll(
       page ? parseInt(page, 10) : 1,
-      limit ? Math.min(parseInt(limit, 10), 50) : 20,
+      limit ? parseInt(limit, 10) : 20,
     );
   }
 
   @Get(":id")
   detail(@Param("id") id: string) {
-    const prop = this.propertiesService.findOne(id);
-    if (!prop) {
-      return { error: { code: "NOT_FOUND", message: "Property not found" } };
-    }
-    return prop;
+    return this.propertiesService.findOne(id);
   }
 }
