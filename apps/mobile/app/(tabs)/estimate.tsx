@@ -7,12 +7,23 @@ import {
   Pressable,
   ScrollView,
   ActivityIndicator,
+  TextInput,
 } from "react-native";
 import { API_URL } from "../../lib/api";
 
 const TYPES = ["GREY_STRUCTURE", "TURNKEY", "SEMI_FINISHED"] as const;
 const QUALITY = ["ECONOMY", "STANDARD", "PREMIUM", "LUXURY"] as const;
-const CITIES = ["Lahore", "Karachi", "Islamabad", "Multan"];
+const AREA_UNITS = ["MARLA", "KANAL", "SQFT"] as const;
+const CITY_PRESETS = [
+  "Lahore",
+  "Karachi",
+  "Islamabad",
+  "Rawalpindi",
+  "Multan",
+  "Faisalabad",
+  "Peshawar",
+  "Quetta",
+];
 
 type Result = {
   total: { lowPkr: number; expectedPkr: number; highPkr: number; perSqftPkr: number };
@@ -27,32 +38,54 @@ function formatCr(n: number) {
 }
 
 export default function EstimateScreen() {
-  const [marla, setMarla] = useState(5);
+  const [areaValue, setAreaValue] = useState("5");
+  const [areaUnit, setAreaUnit] = useState<(typeof AREA_UNITS)[number]>("MARLA");
+  const [floors, setFloors] = useState("1");
   const [type, setType] = useState<(typeof TYPES)[number]>("GREY_STRUCTURE");
   const [quality, setQuality] = useState<(typeof QUALITY)[number]>("STANDARD");
   const [city, setCity] = useState("Lahore");
+  const [customCity, setCustomCity] = useState("");
+  const [useCustomCity, setUseCustomCity] = useState(false);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<Result | null>(null);
   const [error, setError] = useState("");
 
+  const resolvedCity = useCustomCity ? customCity.trim() || "DEFAULT" : city;
+  const areaNum = parseFloat(areaValue) || 1;
+  const floorsNum = Math.max(1, parseInt(floors, 10) || 1);
+
   const localFallback = useMemo(() => {
-    // offline approx if API down
-    const sqft = marla * 225;
+    const sqft =
+      areaUnit === "MARLA"
+        ? areaNum * 225
+        : areaUnit === "KANAL"
+          ? areaNum * 4500
+          : areaNum;
     const base = type === "TURNKEY" ? 5500 : type === "SEMI_FINISHED" ? 4200 : 3200;
     const q = { ECONOMY: 1, STANDARD: 1.18, PREMIUM: 1.42, LUXURY: 1.75 }[quality];
-    const c = { Lahore: 1.08, Karachi: 1.12, Islamabad: 1.15, Multan: 1 }[city] ?? 1;
-    const expected = sqft * base * q * c;
+    const cityMult: Record<string, number> = {
+      Lahore: 1.08,
+      Karachi: 1.12,
+      Islamabad: 1.15,
+      Rawalpindi: 1.1,
+      Multan: 1.0,
+      Faisalabad: 1.03,
+      Peshawar: 1.02,
+      Quetta: 1.05,
+    };
+    const c = cityMult[resolvedCity] ?? 1.0;
+    const expected = sqft * floorsNum * base * q * c;
     return {
       total: {
         lowPkr: expected * 0.92,
         expectedPkr: expected,
         highPkr: expected * 1.12,
-        perSqftPkr: expected / sqft,
+        perSqftPkr: expected / Math.max(1, sqft * floorsNum),
       },
-      disclaimer: "Offline estimate (approx). API connect hone par exact engine use hoga.",
+      disclaimer: "Offline estimate. API par exact engine + city rates use honge.",
       lineItems: [],
     };
-  }, [marla, type, quality, city]);
+  }, [areaNum, areaUnit, floorsNum, type, quality, resolvedCity]);
 
   async function run() {
     setLoading(true);
@@ -66,12 +99,12 @@ export default function EstimateScreen() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          areaValue: marla,
-          areaUnit: "MARLA",
-          floors: 1,
+          areaValue: areaNum,
+          areaUnit,
+          floors: floorsNum,
           constructionType: type,
           quality,
-          city,
+          city: resolvedCity,
         }),
       });
       const data = await res.json();
@@ -79,28 +112,44 @@ export default function EstimateScreen() {
       setResult(data);
     } catch {
       setResult(localFallback);
-      setError("API offline — local estimate dikha rahe hain");
+      setError("API offline — local estimate");
     } finally {
       setLoading(false);
     }
   }
 
-  const show = result ?? null;
-
   return (
     <SafeAreaView style={s.safe}>
-      <ScrollView contentContainerStyle={s.pad}>
+      <ScrollView contentContainerStyle={s.pad} keyboardShouldPersistTaps="handled">
         <Text style={s.h1}>Construction cost</Text>
-        <Text style={s.sub}>Pakistan rates · range estimate</Text>
+        <Text style={s.sub}>Custom area · city · floors</Text>
 
-        <Text style={s.label}>Area (Marla)</Text>
+        <Text style={s.label}>Area</Text>
+        <TextInput
+          style={s.input}
+          keyboardType="decimal-pad"
+          value={areaValue}
+          onChangeText={setAreaValue}
+          placeholder="e.g. 5 or 12.5"
+          placeholderTextColor="#4A5A55"
+        />
         <View style={s.row}>
-          {[3, 5, 7, 10, 20].map((n) => (
-            <Pressable key={n} style={[s.chip, marla === n && s.chipOn]} onPress={() => setMarla(n)}>
-              <Text style={[s.chipText, marla === n && s.chipTextOn]}>{n}</Text>
+          {AREA_UNITS.map((u) => (
+            <Pressable key={u} style={[s.chip, areaUnit === u && s.chipOn]} onPress={() => setAreaUnit(u)}>
+              <Text style={[s.chipText, areaUnit === u && s.chipTextOn]}>{u}</Text>
             </Pressable>
           ))}
         </View>
+
+        <Text style={s.label}>Floors</Text>
+        <TextInput
+          style={s.input}
+          keyboardType="number-pad"
+          value={floors}
+          onChangeText={setFloors}
+          placeholder="1"
+          placeholderTextColor="#4A5A55"
+        />
 
         <Text style={s.label}>Type</Text>
         <View style={s.row}>
@@ -122,27 +171,45 @@ export default function EstimateScreen() {
 
         <Text style={s.label}>City</Text>
         <View style={s.row}>
-          {CITIES.map((c) => (
-            <Pressable key={c} style={[s.chip, city === c && s.chipOn]} onPress={() => setCity(c)}>
-              <Text style={[s.chipText, city === c && s.chipTextOn]}>{c}</Text>
+          {CITY_PRESETS.map((c) => (
+            <Pressable
+              key={c}
+              style={[s.chip, !useCustomCity && city === c && s.chipOn]}
+              onPress={() => {
+                setCity(c);
+                setUseCustomCity(false);
+              }}
+            >
+              <Text style={[s.chipText, !useCustomCity && city === c && s.chipTextOn]}>{c}</Text>
             </Pressable>
           ))}
+          <Pressable style={[s.chip, useCustomCity && s.chipOn]} onPress={() => setUseCustomCity(true)}>
+            <Text style={[s.chipText, useCustomCity && s.chipTextOn]}>+ Custom</Text>
+          </Pressable>
         </View>
+        {useCustomCity ? (
+          <TextInput
+            style={s.input}
+            placeholder="City / town name"
+            placeholderTextColor="#4A5A55"
+            value={customCity}
+            onChangeText={setCustomCity}
+          />
+        ) : null}
 
         <Pressable style={s.btn} onPress={run} disabled={loading}>
           {loading ? <ActivityIndicator color="#fff" /> : <Text style={s.btnText}>Estimate nikaalo</Text>}
         </Pressable>
-
         {error ? <Text style={s.warn}>{error}</Text> : null}
 
-        {show ? (
+        {result ? (
           <View style={s.card}>
-            <Text style={s.price}>{formatCr(show.total.expectedPkr)}</Text>
+            <Text style={s.price}>{formatCr(result.total.expectedPkr)}</Text>
             <Text style={s.range}>
-              {formatCr(show.total.lowPkr)} – {formatCr(show.total.highPkr)}
+              {formatCr(result.total.lowPkr)} – {formatCr(result.total.highPkr)}
             </Text>
-            <Text style={s.meta}>~PKR {Math.round(show.total.perSqftPkr).toLocaleString()} / sqft</Text>
-            <Text style={s.disc}>{show.disclaimer}</Text>
+            <Text style={s.meta}>~PKR {Math.round(result.total.perSqftPkr).toLocaleString()} / sqft</Text>
+            <Text style={s.disc}>{result.disclaimer}</Text>
           </View>
         ) : null}
       </ScrollView>
@@ -168,6 +235,15 @@ const s = StyleSheet.create({
   chipOn: { backgroundColor: "#0D6B5F", borderColor: "#0D6B5F" },
   chipText: { fontSize: 12, color: "#4A5A55" },
   chipTextOn: { color: "#fff", fontWeight: "700" },
+  input: {
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(15,28,25,0.13)",
+    padding: 14,
+    fontSize: 16,
+    color: "#0F1C19",
+  },
   btn: {
     marginTop: 20,
     backgroundColor: "#0D6B5F",

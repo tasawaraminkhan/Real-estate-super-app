@@ -8,7 +8,12 @@ const FACTORS = {
 };
 
 const QUALITY_MULT = { ECONOMY: 1.0, STANDARD: 1.18, PREMIUM: 1.42, LUXURY: 1.75 };
-const CITY_MULT = { Karachi: 1.12, Lahore: 1.08, Islamabad: 1.15, Multan: 1.0, Peshawar: 1.02, DEFAULT: 1.0 };
+const CITY_MULT: Record<string, number> = {
+  Karachi: 1.12, Lahore: 1.08, Islamabad: 1.15, Rawalpindi: 1.1,
+  Multan: 1.0, Faisalabad: 1.03, Peshawar: 1.02, Quetta: 1.05,
+  Sialkot: 1.04, Gujranwala: 1.03, Hyderabad: 1.06, Bahawalpur: 1.0,
+  DEFAULT: 1.0,
+};
 
 /** Sample 2025 rates (paisa per unit) — seed/verify before production */
 const RATES: Record<string, number> = {
@@ -47,7 +52,7 @@ export class ConstructionService {
     const floors = input.floors ?? 1;
     const factors = FACTORS[input.constructionType];
     const qMult = QUALITY_MULT[input.quality];
-    const cMult = CITY_MULT[input.city ?? "DEFAULT"] ?? 1.0;
+    const cMult = CITY_MULT[input.city ?? "DEFAULT"] ?? CITY_MULT.DEFAULT ?? 1.0;
 
     const lines: { item: string; qty: number; unit: string; rate: number; total: number }[] = [];
     let expected = 0;
