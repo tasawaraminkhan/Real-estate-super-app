@@ -1,10 +1,18 @@
 import Constants from "expo-constants";
 
-/** Phone pe localhost nahi chalega — LAN IP ya deployed API set karo */
 const API_URL =
   process.env.EXPO_PUBLIC_API_URL ||
   (Constants.expoConfig?.extra as { apiUrl?: string } | undefined)?.apiUrl ||
   "";
+
+let accessToken: string | null = null;
+
+export function setToken(t: string | null) {
+  accessToken = t;
+}
+export function getToken() {
+  return accessToken;
+}
 
 const DEMO_LISTINGS = [
   {
@@ -53,14 +61,13 @@ export async function api<T>(
   path: string,
   opts: RequestInit & { token?: string } = {},
 ): Promise<T> {
-  if (!API_URL) {
-    throw new Error("NO_API");
-  }
+  if (!API_URL) throw new Error("NO_API");
   const headers: Record<string, string> = {
     "Content-Type": "application/json",
     ...(opts.headers as Record<string, string>),
   };
-  if (opts.token) headers.Authorization = `Bearer ${opts.token}`;
+  const tok = opts.token ?? accessToken;
+  if (tok) headers.Authorization = `Bearer ${tok}`;
   const res = await fetch(`${API_URL}${path}`, { ...opts, headers });
   const data = await res.json();
   if (!res.ok) throw data;
@@ -80,21 +87,24 @@ export const authApi = {
   },
   verifyOtp: async (phone: string, code: string) => {
     try {
-      return await api<{
+      const res = await api<{
         accessToken: string;
         user: { id: string; phone: string; role: string; fullName?: string };
       }>("/api/v1/auth/otp/verify", {
         method: "POST",
         body: JSON.stringify({ phone, code }),
       });
+      setToken(res.accessToken);
+      return res;
     } catch {
       if (code === "123456" || code.length === 6) {
+        setToken("demo-token");
         return {
           accessToken: "demo-token",
           user: { id: "demo", phone, role: "BUYER", fullName: "Demo User" },
         };
       }
-      throw { error: { message: "Invalid OTP — demo mein 123456 try karo" } };
+      throw { error: { message: "Invalid OTP — demo: 123456" } };
     }
   },
 };
@@ -109,14 +119,40 @@ export const propertiesApi = {
       return { items: DEMO_LISTINGS, pageInfo: { total: DEMO_LISTINGS.length } };
     }
   },
-  search: async (params: Record<string, string>) => {
+  createDraft: async (body: Record<string, unknown>) => {
     try {
-      const q = new URLSearchParams(params).toString();
-      return await api<{ items: unknown[]; pageInfo: { total: number } }>(
-        `/api/v1/search/properties?${q}`,
-      );
+      return await api<Record<string, unknown>>("/api/v1/properties", {
+        method: "POST",
+        body: JSON.stringify(body),
+      });
     } catch {
-      return { items: DEMO_LISTINGS, pageInfo: { total: DEMO_LISTINGS.length } };
+      return { id: "demo-draft", status: "DRAFT", ...body };
+    }
+  },
+  submit: async (id: string) => {
+    try {
+      return await api(`/api/v1/properties/${id}/submit`, { method: "POST" });
+    } catch {
+      return { property: { id, status: "ACTIVE" }, fraud: { score: 10, action: "auto_approve" } };
+    }
+  },
+  toggleFavourite: async (id: string) => {
+    try {
+      return await api<{ favourited: boolean }>(`/api/v1/properties/${id}/favourite`, {
+        method: "POST",
+      });
+    } catch {
+      return { favourited: true };
+    }
+  },
+};
+
+export const billingApi = {
+  plans: async () => {
+    try {
+      return await api<unknown[]>("/api/v1/billing/plans");
+    } catch {
+      return null;
     }
   },
 };

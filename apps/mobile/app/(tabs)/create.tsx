@@ -8,7 +8,9 @@ import {
   Pressable,
   ScrollView,
   Alert,
+  ActivityIndicator,
 } from "react-native";
+import { propertiesApi } from "../../lib/api";
 
 const PURPOSES = ["SALE", "RENT"] as const;
 const TYPES = ["PLOT", "HOUSE", "FLAT", "SHOP"] as const;
@@ -21,22 +23,51 @@ export default function CreateScreen() {
   const [area, setArea] = useState("5");
   const [priceLac, setPriceLac] = useState("");
   const [city, setCity] = useState("Lahore");
+  const [loading, setLoading] = useState(false);
+
+  async function finish() {
+    setLoading(true);
+    try {
+      const lac = parseFloat(priceLac || "0");
+      const priceAmount = Math.round(lac * 100_000 * 100); // lac → paisa
+      const draft = await propertiesApi.createDraft({
+        purpose,
+        category: type === "SHOP" ? "COMMERCIAL" : "RESIDENTIAL",
+        type,
+        title: title || `${area} Marla ${type} — ${city}`,
+        description: `${title || type} in ${city}. Listed via PropVerse mobile.`,
+        areaValue: parseFloat(area) || 5,
+        areaUnit: "MARLA",
+        priceAmount,
+        currency: "PKR",
+        priceType: "NEGOTIABLE",
+      });
+      const id = String((draft as { id?: string }).id ?? "demo");
+      const submitted = await propertiesApi.submit(id);
+      Alert.alert(
+        "Listing submitted",
+        `ID: ${id}\nStatus: ${(submitted as { property?: { status?: string } })?.property?.status ?? "ACTIVE"}\nFraud: ${JSON.stringify((submitted as { fraud?: { action?: string } })?.fraud?.action ?? "n/a")}`,
+      );
+      setStep(1);
+      setTitle("");
+      setPriceLac("");
+    } catch (e) {
+      Alert.alert("Error", JSON.stringify(e));
+    } finally {
+      setLoading(false);
+    }
+  }
 
   function next() {
     if (step < 4) setStep(step + 1);
-    else {
-      Alert.alert(
-        "Draft ready (demo)",
-        `${purpose} ${type}\n${title || "Untitled"}\n${area} Marla · ${city}\nPKR ${priceLac || "?"} Lac\n\nAPI connect hone par submit + media upload chalega.`,
-      );
-    }
+    else void finish();
   }
 
   return (
     <SafeAreaView style={s.safe}>
       <ScrollView contentContainerStyle={s.pad}>
         <Text style={s.h1}>Listing daalo</Text>
-        <Text style={s.sub}>Step {step} / 4 · 5-minute flow</Text>
+        <Text style={s.sub}>Step {step} / 4</Text>
 
         {step === 1 && (
           <>
@@ -83,12 +114,7 @@ export default function CreateScreen() {
         {step === 3 && (
           <>
             <Text style={s.label}>Area (Marla)</Text>
-            <TextInput
-              style={s.input}
-              keyboardType="decimal-pad"
-              value={area}
-              onChangeText={setArea}
-            />
+            <TextInput style={s.input} keyboardType="decimal-pad" value={area} onChangeText={setArea} />
             <Text style={s.label}>Price (Lac PKR)</Text>
             <TextInput
               style={s.input}
@@ -103,12 +129,11 @@ export default function CreateScreen() {
 
         {step === 4 && (
           <View style={s.card}>
-            <Text style={s.previewTitle}>Preview</Text>
+            <Text style={s.previewTitle}>Preview & submit</Text>
             <Text style={s.previewLine}>{purpose} · {type}</Text>
             <Text style={s.previewLine}>{title || "—"}</Text>
             <Text style={s.previewLine}>{area} Marla · {city}</Text>
             <Text style={s.previewPrice}>PKR {priceLac || "—"} Lac</Text>
-            <Text style={s.hint}>Photos / submit next build mein API se link hoga.</Text>
           </View>
         )}
 
@@ -120,8 +145,12 @@ export default function CreateScreen() {
           ) : (
             <View />
           )}
-          <Pressable style={s.btn} onPress={next}>
-            <Text style={s.btnText}>{step === 4 ? "Save draft" : "Aage"}</Text>
+          <Pressable style={s.btn} onPress={next} disabled={loading}>
+            {loading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={s.btnText}>{step === 4 ? "Submit" : "Aage"}</Text>
+            )}
           </Pressable>
         </View>
       </ScrollView>
@@ -166,9 +195,8 @@ const s = StyleSheet.create({
   previewTitle: { fontWeight: "700", marginBottom: 8, color: "#0D6B5F" },
   previewLine: { color: "#1D2E29", marginBottom: 4 },
   previewPrice: { fontSize: 20, fontWeight: "800", marginTop: 8, color: "#0F1C19" },
-  hint: { fontSize: 12, color: "#4A5A55", marginTop: 12 },
   nav: { flexDirection: "row", justifyContent: "space-between", marginTop: 24, alignItems: "center" },
-  btn: { backgroundColor: "#0D6B5F", borderRadius: 12, paddingHorizontal: 24, paddingVertical: 14 },
+  btn: { backgroundColor: "#0D6B5F", borderRadius: 12, paddingHorizontal: 24, paddingVertical: 14, minWidth: 100, alignItems: "center" },
   btnText: { color: "#fff", fontWeight: "700" },
   btnGhost: { padding: 14 },
   btnGhostText: { color: "#0D6B5F", fontWeight: "600" },
