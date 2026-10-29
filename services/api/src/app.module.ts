@@ -12,6 +12,7 @@ import { LeadsModule } from "./leads/leads.module";
 import { ChatModule } from "./chat/chat.module";
 import { FraudModule } from "./fraud/fraud.module";
 import { AdminModule } from "./admin/admin.module";
+import { SavedSearchModule } from "./saved-search/saved-search.module";
 
 @Module({
   imports: [
@@ -27,6 +28,7 @@ import { AdminModule } from "./admin/admin.module";
     ChatModule,
     FraudModule,
     AdminModule,
+    SavedSearchModule,
   ],
   controllers: [HealthController],
 })

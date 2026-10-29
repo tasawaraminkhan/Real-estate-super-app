@@ -3,9 +3,18 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "echo 'web scaffold — Next.js App Router coming in next commit'",
-    "build": "echo 'web build placeholder'",
-    "typecheck": "echo 'web typecheck ok'",
-    "lint": "echo 'web lint ok'"
+    "dev": "next dev -p 3000",
+    "build": "next build",
+    "start": "next start -p 3000"
+  },
+  "dependencies": {
+    "next": "14.2.5",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "@types/react": "^18",
+    "typescript": "^5"
   }
 }

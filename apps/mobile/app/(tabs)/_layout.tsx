@@ -19,10 +19,11 @@ export default function TabsLayout() {
       }}
     >
       <Tabs.Screen name="home" options={{ title: "Home", tabBarIcon: ({ focused }) => <TabIcon label="Home" focused={focused} /> }} />
+      <Tabs.Screen name="map" options={{ title: "Map", tabBarIcon: ({ focused }) => <TabIcon label="Map" focused={focused} /> }} />
       <Tabs.Screen name="estimate" options={{ title: "Cost", tabBarIcon: ({ focused }) => <TabIcon label="Cost" focused={focused} /> }} />
       <Tabs.Screen name="create" options={{ title: "Sell", tabBarIcon: ({ focused }) => <TabIcon label="Sell" focused={focused} /> }} />
       <Tabs.Screen name="leads" options={{ title: "Leads", tabBarIcon: ({ focused }) => <TabIcon label="Leads" focused={focused} /> }} />
-      <Tabs.Screen name="plans" options={{ title: "Plans", tabBarIcon: ({ focused }) => <TabIcon label="Plans" focused={focused} /> }} />
+      <Tabs.Screen name="plans" options={{ href: null }} />
     </Tabs>
   );
 }
