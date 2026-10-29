@@ -8,8 +8,7 @@ import {
   Pressable,
   SafeAreaView,
 } from "react-native";
-import { router } from "expo-router";
-import { propertiesApi } from "../../lib/api";
+import { propertiesApi, API_URL } from "../../lib/api";
 
 type Item = {
   id: string;
@@ -18,7 +17,7 @@ type Item = {
   areaValue: number;
   areaUnit: string;
   city?: { name: string };
-  society?: { name: string };
+  society?: { name?: string };
 };
 
 function formatPrice(paisa: string) {
@@ -48,7 +47,9 @@ export default function HomeScreen() {
     <SafeAreaView style={s.safe}>
       <View style={s.header}>
         <Text style={s.logo}>PropVerse</Text>
-        <Text style={s.meta}>{total} listings</Text>
+        <Text style={s.meta}>
+          {total} listings{!API_URL ? " · demo" : ""}
+        </Text>
       </View>
       {loading ? (
         <ActivityIndicator color="#0D6B5F" style={{ marginTop: 40 }} />
@@ -58,10 +59,10 @@ export default function HomeScreen() {
           keyExtractor={(i) => i.id}
           contentContainerStyle={{ padding: 16, gap: 12 }}
           ListEmptyComponent={
-            <Text style={s.empty}>Koi listing nahi — pehle API seed chalao</Text>
+            <Text style={s.empty}>Koi listing nahi</Text>
           }
           renderItem={({ item }) => (
-            <Pressable style={s.card} onPress={() => router.push(`/(tabs)/detail?id=${item.id}`)}>
+            <Pressable style={s.card}>
               <Text style={s.price}>{formatPrice(item.priceAmount)}</Text>
               <Text style={s.title}>{item.title}</Text>
               <Text style={s.meta2}>
@@ -98,7 +99,7 @@ const s = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(15,28,25,0.1)",
   },
-  price: { fontSize: 18, fontWeight: "700", color: "#0F1C19", fontVariant: ["tabular-nums"] },
+  price: { fontSize: 18, fontWeight: "700", color: "#0F1C19" },
   title: { fontSize: 15, color: "#1D2E29", marginTop: 4 },
   meta2: { fontSize: 13, color: "#4A5A55", marginTop: 6 },
   empty: { textAlign: "center", color: "#4A5A55", marginTop: 40 },

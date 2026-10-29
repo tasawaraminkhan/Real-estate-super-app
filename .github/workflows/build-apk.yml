@@ -1,0 +1,66 @@
+name: Build Android APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "apps/mobile/**"
+      - ".github/workflows/build-apk.yml"
+
+jobs:
+  build-apk:
+    name: Build PropVerse APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install mobile dependencies
+        working-directory: apps/mobile
+        run: npm install
+
+      - name: Expo prebuild (generate android/)
+        working-directory: apps/mobile
+        run: npx expo prebuild --platform android --non-interactive
+        env:
+          EXPO_NO_TELEMETRY: 1
+          CI: 1
+
+      - name: Gradle assembleDebug
+        working-directory: apps/mobile/android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon -x lint
+        env:
+          NODE_ENV: production
+
+      - name: Copy APK
+        run: |
+          APK=$(find apps/mobile/android -name "*debug*.apk" | head -1)
+          echo "APK path: $APK"
+          ls -lh "$APK"
+          cp "$APK" ./propverse-0.1.0-debug.apk
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: propverse-apk
+          path: propverse-0.1.0-debug.apk
+          retention-days: 30
