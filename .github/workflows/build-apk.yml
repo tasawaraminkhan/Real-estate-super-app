@@ -3,10 +3,8 @@ name: Build Android APK
 on:
   workflow_dispatch:
   push:
-    branches: [main]
-    paths:
-      - "apps/mobile/**"
-      - ".github/workflows/build-apk.yml"
+    branches:
+      - main
 
 jobs:
   build-apk:
@@ -15,16 +13,13 @@ jobs:
     timeout-minutes: 60
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Setup Node 20
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: 20
 
-      - name: Setup Java 17
-        uses: actions/setup-java@v4
+      - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: 17
@@ -39,39 +34,66 @@ jobs:
           echo "ANDROID_SDK_ROOT=$HOME/android-sdk" >> $GITHUB_ENV
           echo "$HOME/android-sdk/cmdline-tools/latest/bin" >> $GITHUB_PATH
           echo "$HOME/android-sdk/platform-tools" >> $GITHUB_PATH
-
-      - name: SDK packages + debug keystore
-        run: |
           yes | sdkmanager --licenses >/dev/null || true
-          sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0" "ndk;26.1.10909125"
+          sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0"
+
+      - name: Debug keystore
+        run: |
           mkdir -p $HOME/.android
-          keytool -genkey -v -keystore $HOME/.android/debug.keystore -storepass android \
+          keytool -genkeypair -keystore $HOME/.android/debug.keystore -storepass android \
             -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 \
             -dname "CN=Android Debug,O=Android,C=US" 2>/dev/null || true
 
-      - name: npm install
+      - name: Install deps
         working-directory: apps/mobile
         run: npm install
 
-      - name: Expo prebuild
+      - name: Prebuild
         working-directory: apps/mobile
         run: npx expo prebuild --platform android --non-interactive
         env:
-          EXPO_NO_TELEMETRY: 1
           CI: "1"
+          EXPO_NO_TELEMETRY: "1"
 
-      - name: Configure release signing (debug keystore)
+      - name: Sign release with debug keystore
         working-directory: apps/mobile/android
         run: |
-          # Patch app/build.gradle to sign release with debug keystore for sideload testing
-          if [ -f app/build.gradle ]; then
-            cat >> app/build.gradle << 'GRADLE'
-
-// PropVerse CI: sideload-friendly release signing
+          # Write signing config into gradle.properties + patch build.gradle simply
+          echo "MYAPP_UPLOAD_STORE_FILE=$HOME/.android/debug.keystore" >> gradle.properties
+          echo "MYAPP_UPLOAD_KEY_ALIAS=androiddebugkey" >> gradle.properties
+          echo "MYAPP_UPLOAD_STORE_PASSWORD=android" >> gradle.properties
+          echo "MYAPP_UPLOAD_KEY_PASSWORD=android" >> gradle.properties
+          python3 << 'PY'
+          from pathlib import Path
+          p = Path("app/build.gradle")
+          t = p.read_text()
+          if "signingConfigs" not in t or "androiddebugkey" not in t:
+              inject = '''
+      signingConfigs {
+          release {
+              storeFile file(System.getenv("HOME") + "/.android/debug.keystore")
+              storePassword "android"
+              keyAlias "androiddebugkey"
+              keyPassword "android"
+          }
+      }
+      buildTypes {
+          release {
+              signingConfig signingConfigs.release
+          }
+      }
+'''
+              # insert inside android { block - after defaultConfig if present
+              if "buildTypes {" in t:
+                  t = t.replace("buildTypes {", inject.split("buildTypes {")[0] + "buildTypes {", 1)
+                  # simpler: append at end of file
+              t = t + "\n\nandroid.signingConfigs.release.storeFile = file(System.getenv('HOME') + '/.android/debug.keystore')\n"
+              # Actually use a clean approach - create signing.gradle
+          Path("signing.gradle").write_text('''
 android {
     signingConfigs {
         release {
-            storeFile file("${System.properties['user.home']}/.android/debug.keystore")
+            storeFile file("${System.env.HOME}/.android/debug.keystore")
             storePassword "android"
             keyAlias "androiddebugkey"
             keyPassword "android"
@@ -81,31 +103,29 @@ android {
         release {
             signingConfig signingConfigs.release
             minifyEnabled false
+            shrinkResources false
         }
     }
 }
-GRADLE
-          fi
+''')
+          if "signing.gradle" not in t:
+              t = t + '\napply from: "signing.gradle"\n'
+              p.write_text(t)
+          print("signing patched")
+          PY
 
-      - name: Assemble RELEASE (JS bundle embedded — no Metro)
+      - name: Assemble release
         working-directory: apps/mobile/android
         run: |
           chmod +x gradlew
-          ./gradlew assembleRelease --no-daemon -x lint --stacktrace
+          ./gradlew assembleRelease --no-daemon -x lint
         env:
           NODE_ENV: production
 
-      - name: Package APK
-        run: |
-          APK=$(find apps/mobile/android -path "*release*" -name "*.apk" ! -name "*unaligned*" | head -1)
-          echo "Found: $APK"
-          ls -lh "$APK"
-          cp "$APK" propverse-standalone.apk
-          ls -lh propverse-standalone.apk
-
-      - name: Upload APK artifact
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: propverse-apk
-          path: propverse-standalone.apk
+          path: apps/mobile/android/app/build/outputs/apk/release/*.apk
+          if-no-files-found: error
           retention-days: 30
