@@ -13,6 +13,7 @@ import { ChatModule } from "./chat/chat.module";
 import { FraudModule } from "./fraud/fraud.module";
 import { AdminModule } from "./admin/admin.module";
 import { SavedSearchModule } from "./saved-search/saved-search.module";
+import { KycModule } from "./kyc/kyc.module";
 
 @Module({
   imports: [
@@ -29,6 +30,7 @@ import { SavedSearchModule } from "./saved-search/saved-search.module";
     FraudModule,
     AdminModule,
     SavedSearchModule,
+    KycModule,
   ],
   controllers: [HealthController],
 })

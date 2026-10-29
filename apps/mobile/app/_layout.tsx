@@ -12,6 +12,8 @@ export default function RootLayout() {
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="detail" options={{ presentation: "card" }} />
         <Stack.Screen name="chat" options={{ presentation: "card" }} />
+        <Stack.Screen name="profile" options={{ presentation: "card" }} />
+        <Stack.Screen name="favourites" options={{ presentation: "card" }} />
       </Stack>
     </>
   );

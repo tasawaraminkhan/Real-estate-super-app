@@ -31,11 +31,20 @@ function formatPrice(paisa: string) {
   return `PKR ${Math.round(pkr).toLocaleString()}`;
 }
 
+const PRICE_FILTERS = [
+  { id: "ALL", label: "Any price" },
+  { id: "0-50", label: "< 50 Lac", max: 50_00_000_00 }, // paisa: 50 lac
+  { id: "50-100", label: "50–100 Lac", min: 50_00_000_00, max: 100_00_000_00 },
+  { id: "100-300", label: "1–3 Cr", min: 100_00_000_00, max: 300_00_000_00 },
+  { id: "300+", label: "3 Cr+", min: 300_00_000_00 },
+];
+
 export default function HomeScreen() {
   const [items, setItems] = useState<Item[]>([]);
   const [loading, setLoading] = useState(true);
   const [total, setTotal] = useState(0);
   const [purpose, setPurpose] = useState<"ALL" | "SALE" | "RENT">("ALL");
+  const [priceId, setPriceId] = useState("ALL");
   const [q, setQ] = useState("");
 
   const load = useCallback(() => {
@@ -45,6 +54,15 @@ export default function HomeScreen() {
       .then((r) => {
         let list = r.items as Item[];
         if (purpose !== "ALL") list = list.filter((i) => (i.purpose ?? "SALE") === purpose);
+        const pf = PRICE_FILTERS.find((p) => p.id === priceId);
+        if (pf && pf.id !== "ALL") {
+          list = list.filter((i) => {
+            const n = Number(i.priceAmount);
+            if (pf.min != null && n < pf.min) return false;
+            if (pf.max != null && n > pf.max) return false;
+            return true;
+          });
+        }
         if (q.trim()) {
           const qq = q.toLowerCase();
           list = list.filter(
@@ -59,7 +77,7 @@ export default function HomeScreen() {
       })
       .catch(console.error)
       .finally(() => setLoading(false));
-  }, [purpose, q]);
+  }, [purpose, q, priceId]);
 
   useEffect(() => {
     load();
@@ -69,15 +87,15 @@ export default function HomeScreen() {
     <SafeAreaView style={s.safe}>
       <View style={s.header}>
         <Text style={s.logo}>PropVerse</Text>
-        <Text style={s.meta}>
-          {total}{!API_URL ? " · demo" : ""}
-        </Text>
+        <Pressable onPress={() => router.push("/profile")}>
+          <Text style={s.profile}>Profile</Text>
+        </Pressable>
       </View>
 
       <View style={s.searchBox}>
         <TextInput
           style={s.search}
-          placeholder="DHA, Bahria, Lahore..."
+          placeholder="City, society, DHA..."
           placeholderTextColor="#4A5A55"
           value={q}
           onChangeText={setQ}
@@ -85,13 +103,22 @@ export default function HomeScreen() {
         />
       </View>
 
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.filters} contentContainerStyle={{ gap: 8, paddingHorizontal: 16 }}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.filters} contentContainerStyle={s.filterPad}>
         {(["ALL", "SALE", "RENT"] as const).map((p) => (
           <Pressable key={p} style={[s.chip, purpose === p && s.chipOn]} onPress={() => setPurpose(p)}>
             <Text style={[s.chipText, purpose === p && s.chipTextOn]}>{p === "ALL" ? "All" : p}</Text>
           </Pressable>
         ))}
       </ScrollView>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.filters} contentContainerStyle={s.filterPad}>
+        {PRICE_FILTERS.map((p) => (
+          <Pressable key={p.id} style={[s.chip, priceId === p.id && s.chipOn]} onPress={() => setPriceId(p.id)}>
+            <Text style={[s.chipText, priceId === p.id && s.chipTextOn]}>{p.label}</Text>
+          </Pressable>
+        ))}
+      </ScrollView>
+
+      <Text style={s.count}>{total} results{!API_URL ? " · demo" : ""}</Text>
 
       {loading ? (
         <ActivityIndicator color="#0D6B5F" style={{ marginTop: 40 }} />
@@ -131,7 +158,7 @@ const s = StyleSheet.create({
     borderBottomColor: "rgba(15,28,25,0.1)",
   },
   logo: { fontSize: 18, fontWeight: "800", color: "#0D6B5F" },
-  meta: { color: "#4A5A55", fontSize: 13 },
+  profile: { color: "#0D6B5F", fontWeight: "600" },
   searchBox: { paddingHorizontal: 16, paddingTop: 10, backgroundColor: "#fff" },
   search: {
     backgroundColor: "#EEF1EC",
@@ -141,17 +168,19 @@ const s = StyleSheet.create({
     fontSize: 15,
     color: "#0F1C19",
   },
-  filters: { backgroundColor: "#fff", paddingVertical: 10, maxHeight: 52 },
+  filters: { backgroundColor: "#fff", maxHeight: 48 },
+  filterPad: { gap: 8, paddingHorizontal: 16, paddingVertical: 8 },
   chip: {
     borderWidth: 1,
     borderColor: "rgba(15,28,25,0.15)",
     borderRadius: 999,
-    paddingHorizontal: 14,
+    paddingHorizontal: 12,
     paddingVertical: 6,
   },
   chipOn: { backgroundColor: "#0D6B5F", borderColor: "#0D6B5F" },
-  chipText: { fontSize: 13, color: "#4A5A55" },
+  chipText: { fontSize: 12, color: "#4A5A55" },
   chipTextOn: { color: "#fff", fontWeight: "700" },
+  count: { paddingHorizontal: 16, paddingVertical: 6, color: "#4A5A55", fontSize: 12, backgroundColor: "#fff" },
   card: {
     backgroundColor: "#fff",
     borderRadius: 12,

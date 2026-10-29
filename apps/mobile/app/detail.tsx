@@ -97,6 +97,12 @@ export default function DetailScreen() {
               <Text style={s.btnOutlineText}>Save</Text>
             </Pressable>
           </View>
+          <Pressable
+            style={[s.btnOutline, { marginTop: 12 }]}
+            onPress={() => Alert.alert("Masked call", "Production: proxy number via telephony provider. Seller number hide rehta hai.")}
+          >
+            <Text style={s.btnOutlineText}>Call (masked)</Text>
+          </Pressable>
         </View>
       </ScrollView>
     </SafeAreaView>
