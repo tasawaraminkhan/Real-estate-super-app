@@ -222,6 +222,7 @@ model Property {
   city    Location? @relation(fields: [cityId], references: [id])
   media   PropertyMedia[]
   favourites Favourite[]
+  leads      Lead[]
 
   @@index([cityId, purpose, status, priceAmount])
   @@index([societyId, status])
@@ -279,4 +280,165 @@ model Favourite {
 
   @@unique([userId, propertyId])
   @@map("favourites")
+}
+
+enum LeadStage {
+  NEW
+  CONTACTED
+  VISIT_SCHEDULED
+  NEGOTIATION
+  CLOSED_WON
+  CLOSED_LOST
+}
+
+enum SubscriptionStatus {
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  CANCELLED
+  EXPIRED
+}
+
+enum TransactionStatus {
+  CREATED
+  PENDING
+  PAID
+  REFUNDED
+  FAILED
+  EXPIRED
+}
+
+enum PlanTier {
+  FREE
+  STARTER
+  PROFESSIONAL
+  AGENCY
+  DEVELOPER
+}
+
+model Lead {
+  id             String    @id @default(uuid())
+  propertyId     String    @map("property_id")
+  buyerId        String?   @map("buyer_id")
+  agentId        String?   @map("agent_id")
+  stage          LeadStage @default(NEW)
+  source         String?
+  notes          String?
+  buyerPhone     String?   @map("buyer_phone")
+  buyerName      String?   @map("buyer_name")
+  nextFollowupAt DateTime? @map("next_followup_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  property Property @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  @@index([agentId, stage])
+  @@index([propertyId])
+  @@map("leads")
+}
+
+model Plan {
+  id              String   @id @default(uuid())
+  code            PlanTier @unique
+  name            String
+  priceMonthly    BigInt   @map("price_monthly") // paisa
+  maxListings     Int      @map("max_listings")
+  maxPhotos       Int      @map("max_photos")
+  maxSeats        Int      @default(1) @map("max_seats")
+  featuredCredits Int      @default(0) @map("featured_credits")
+  isActive        Boolean  @default(true) @map("is_active")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  subscriptions Subscription[]
+
+  @@map("plans")
+}
+
+model Subscription {
+  id                 String             @id @default(uuid())
+  userId             String             @map("user_id")
+  planId             String             @map("plan_id")
+  status             SubscriptionStatus @default(ACTIVE)
+  currentPeriodStart DateTime           @map("current_period_start")
+  currentPeriodEnd   DateTime           @map("current_period_end")
+  cancelAtPeriodEnd  Boolean            @default(false) @map("cancel_at_period_end")
+  featuredCredits    Int                @default(0) @map("featured_credits")
+  createdAt          DateTime           @default(now()) @map("created_at")
+  updatedAt          DateTime           @updatedAt @map("updated_at")
+
+  plan Plan @relation(fields: [planId], references: [id])
+
+  @@index([userId, status])
+  @@map("subscriptions")
+}
+
+model Transaction {
+  id          String            @id @default(uuid())
+  userId      String            @map("user_id")
+  amount      BigInt
+  currency    String            @default("PKR") @db.Char(3)
+  status      TransactionStatus @default(CREATED)
+  provider    String            @default("mock") // jazzcash | easypaisa | stripe | bank | mock
+  providerRef String?           @map("provider_ref")
+  purpose     String // subscription | featured | token_booking
+  meta        Json?
+  createdAt   DateTime          @default(now()) @map("created_at")
+  updatedAt   DateTime          @updatedAt @map("updated_at")
+
+  @@index([userId, status])
+  @@map("transactions")
+}
+
+model ConstructionRate {
+  id           String   @id @default(uuid())
+  material     String // cement | steel | bricks | sand | crush | labour_grey
+  unit         String // bag | kg | no | cft | sqft
+  priceMinor   BigInt   @map("price_minor") // paisa
+  city         String   @default("DEFAULT")
+  effectiveFrom DateTime @map("effective_from")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  @@index([material, city, effectiveFrom])
+  @@map("construction_rates")
+}
+
+model FraudSignal {
+  id         String   @id @default(uuid())
+  propertyId String   @map("property_id")
+  score      Int
+  signals    Json
+  action     String // auto_approve | hold | auto_hold
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  @@index([propertyId])
+  @@map("fraud_signals")
+}
+
+model MessageThread {
+  id         String   @id @default(uuid())
+  propertyId String   @map("property_id")
+  buyerId    String   @map("buyer_id")
+  sellerId   String   @map("seller_id")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  messages Message[]
+
+  @@unique([propertyId, buyerId, sellerId])
+  @@map("message_threads")
+}
+
+model Message {
+  id        String   @id @default(uuid())
+  threadId  String   @map("thread_id")
+  senderId  String   @map("sender_id")
+  body      String
+  type      String   @default("text")
+  readAt    DateTime? @map("read_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  thread MessageThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+
+  @@index([threadId, createdAt])
+  @@map("messages")
 }

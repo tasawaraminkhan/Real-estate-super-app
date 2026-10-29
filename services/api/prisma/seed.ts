@@ -192,6 +192,21 @@ async function main() {
     });
   }
 
+
+  const planDefs = [
+    { code: "FREE" as const, name: "Free", priceMonthly: BigInt(0), maxListings: 3, maxPhotos: 5, maxSeats: 1, featuredCredits: 0 },
+    { code: "STARTER" as const, name: "Starter", priceMonthly: BigInt(30000000), maxListings: 15, maxPhotos: 25, maxSeats: 1, featuredCredits: 0 },
+    { code: "PROFESSIONAL" as const, name: "Professional", priceMonthly: BigInt(80000000), maxListings: 50, maxPhotos: 25, maxSeats: 3, featuredCredits: 5 },
+    { code: "AGENCY" as const, name: "Agency", priceMonthly: BigInt(200000000), maxListings: 200, maxPhotos: 25, maxSeats: 10, featuredCredits: 20 },
+  ];
+  for (const pl of planDefs) {
+    await prisma.plan.upsert({
+      where: { code: pl.code },
+      update: pl,
+      create: pl,
+    });
+  }
+
   const count = await prisma.property.count();
   console.log(`Seed done. Properties: ${count}, Societies: 3, Plots: 20`);
 }
