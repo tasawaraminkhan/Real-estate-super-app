@@ -55,64 +55,28 @@ jobs:
           CI: "1"
           EXPO_NO_TELEMETRY: "1"
 
-      - name: Sign release with debug keystore
+      - name: Apply release signing
         working-directory: apps/mobile/android
         run: |
-          # Write signing config into gradle.properties + patch build.gradle simply
-          echo "MYAPP_UPLOAD_STORE_FILE=$HOME/.android/debug.keystore" >> gradle.properties
-          echo "MYAPP_UPLOAD_KEY_ALIAS=androiddebugkey" >> gradle.properties
-          echo "MYAPP_UPLOAD_STORE_PASSWORD=android" >> gradle.properties
-          echo "MYAPP_UPLOAD_KEY_PASSWORD=android" >> gradle.properties
-          python3 << 'PY'
-          from pathlib import Path
-          p = Path("app/build.gradle")
-          t = p.read_text()
-          if "signingConfigs" not in t or "androiddebugkey" not in t:
-              inject = '''
-      signingConfigs {
-          release {
-              storeFile file(System.getenv("HOME") + "/.android/debug.keystore")
-              storePassword "android"
-              keyAlias "androiddebugkey"
-              keyPassword "android"
+          cat > app/signing.gradle << 'SG'
+          android {
+              signingConfigs {
+                  release {
+                      storeFile file("${System.env.HOME}/.android/debug.keystore")
+                      storePassword "android"
+                      keyAlias "androiddebugkey"
+                      keyPassword "android"
+                  }
+              }
+              buildTypes {
+                  release {
+                      signingConfig signingConfigs.release
+                      minifyEnabled false
+                  }
+              }
           }
-      }
-      buildTypes {
-          release {
-              signingConfig signingConfigs.release
-          }
-      }
-'''
-              # insert inside android { block - after defaultConfig if present
-              if "buildTypes {" in t:
-                  t = t.replace("buildTypes {", inject.split("buildTypes {")[0] + "buildTypes {", 1)
-                  # simpler: append at end of file
-              t = t + "\n\nandroid.signingConfigs.release.storeFile = file(System.getenv('HOME') + '/.android/debug.keystore')\n"
-              # Actually use a clean approach - create signing.gradle
-          Path("signing.gradle").write_text('''
-android {
-    signingConfigs {
-        release {
-            storeFile file("${System.env.HOME}/.android/debug.keystore")
-            storePassword "android"
-            keyAlias "androiddebugkey"
-            keyPassword "android"
-        }
-    }
-    buildTypes {
-        release {
-            signingConfig signingConfigs.release
-            minifyEnabled false
-            shrinkResources false
-        }
-    }
-}
-''')
-          if "signing.gradle" not in t:
-              t = t + '\napply from: "signing.gradle"\n'
-              p.write_text(t)
-          print("signing patched")
-          PY
+          SG
+          echo 'apply from: "signing.gradle"' >> app/build.gradle
 
       - name: Assemble release
         working-directory: apps/mobile/android
