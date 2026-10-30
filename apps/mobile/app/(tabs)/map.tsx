@@ -1,14 +1,9 @@
-import { useEffect, useState } from "react";
-import { View, Text, StyleSheet, SafeAreaView, Pressable, ScrollView, ActivityIndicator } from "react-native";
-import { API_URL } from "../../lib/api";
+import { useState } from "react";
+import { View, Text, StyleSheet, Pressable, ScrollView } from "react-native";
+import { Screen } from "../../src/components/Screen";
+import { colors, space } from "../../src/theme/tokens";
 
-type Plot = {
-  id: string;
-  plotNo: string;
-  status: string;
-  areaMarla?: number;
-  priceAmount?: string;
-};
+type Plot = { id: string; plotNo: string; status: string; areaMarla?: number; priceAmount?: string; noc?: boolean };
 
 const STATUS_COLOR: Record<string, string> = {
   AVAILABLE: "#1F7A4C",
@@ -18,14 +13,21 @@ const STATUS_COLOR: Record<string, string> = {
 };
 
 const DEMO_PLOTS: Plot[] = [
-  { id: "1", plotNo: "214", status: "AVAILABLE", areaMarla: 10, priceAmount: "24500000000" },
-  { id: "2", plotNo: "215", status: "RESERVED", areaMarla: 10 },
-  { id: "3", plotNo: "216", status: "SOLD", areaMarla: 10 },
-  { id: "4", plotNo: "217", status: "AVAILABLE", areaMarla: 5, priceAmount: "12000000000" },
-  { id: "5", plotNo: "218", status: "AVAILABLE", areaMarla: 7, priceAmount: "16500000000" },
-  { id: "6", plotNo: "219", status: "BLOCKED", areaMarla: 10 },
-  { id: "7", plotNo: "220", status: "AVAILABLE", areaMarla: 10, priceAmount: "25000000000" },
-  { id: "8", plotNo: "221", status: "SOLD", areaMarla: 5 },
+  { id: "1", plotNo: "214", status: "AVAILABLE", areaMarla: 10, priceAmount: "24500000000", noc: true },
+  { id: "2", plotNo: "215", status: "RESERVED", areaMarla: 10, noc: true },
+  { id: "3", plotNo: "216", status: "SOLD", areaMarla: 10, noc: true },
+  { id: "4", plotNo: "217", status: "AVAILABLE", areaMarla: 5, priceAmount: "12000000000", noc: false },
+  { id: "5", plotNo: "218", status: "AVAILABLE", areaMarla: 7, priceAmount: "16500000000", noc: true },
+  { id: "6", plotNo: "219", status: "BLOCKED", areaMarla: 10, noc: false },
+  { id: "7", plotNo: "220", status: "AVAILABLE", areaMarla: 10, priceAmount: "25000000000", noc: true },
+  { id: "8", plotNo: "221", status: "SOLD", areaMarla: 5, noc: true },
+];
+
+const LAYERS = [
+  { id: "noc", label: "NOC approved" },
+  { id: "commercial", label: "Commercial zones" },
+  { id: "roi", label: "High ROI" },
+  { id: "uc", label: "Under construction" },
 ];
 
 function formatPrice(paisa?: string) {
@@ -37,41 +39,32 @@ function formatPrice(paisa?: string) {
 }
 
 export default function MapScreen() {
-  const [plots, setPlots] = useState<Plot[]>(DEMO_PLOTS);
+  const [plots] = useState(DEMO_PLOTS);
   const [selected, setSelected] = useState<Plot | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [layers, setLayers] = useState<Record<string, boolean>>({ noc: true });
 
-  useEffect(() => {
-    if (!API_URL) return;
-    setLoading(true);
-    fetch(`${API_URL}/api/v1/societies`)
-      .then((r) => r.json())
-      .then(async (list) => {
-        const first = Array.isArray(list) ? list[0] : list?.items?.[0];
-        if (!first?.id) return;
-        const map = await fetch(`${API_URL}/api/v1/societies/${first.id}/map`).then((r) => r.json());
-        if (map?.features) {
-          setPlots(
-            map.features.map((f: { properties: Plot & { plotNo?: string } }, i: number) => ({
-              id: String(f.properties.id ?? i),
-              plotNo: f.properties.plotNo ?? String(i),
-              status: f.properties.status ?? "AVAILABLE",
-              areaMarla: f.properties.areaMarla,
-              priceAmount: f.properties.priceAmount,
-            })),
-          );
-        }
-      })
-      .catch(() => undefined)
-      .finally(() => setLoading(false));
-  }, []);
+  const visible = plots.filter((p) => {
+    if (layers.noc && p.noc === false) return false;
+    return true;
+  });
 
   return (
-    <SafeAreaView style={s.safe}>
-      <Text style={s.h1}>Society map</Text>
-      <Text style={s.sub}>Master plan · plot inventory (demo grid)</Text>
+    <Screen>
+      <Text style={s.h1}>Society Map</Text>
+      <Text style={s.sub}>Master plan · plot inventory</Text>
 
-      {loading ? <ActivityIndicator color="#0D6B5F" /> : null}
+      <Text style={s.layerTitle}>Map layers</Text>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.layerRow}>
+        {LAYERS.map((l) => (
+          <Pressable
+            key={l.id}
+            style={[s.chip, layers[l.id] && s.chipOn]}
+            onPress={() => setLayers((prev) => ({ ...prev, [l.id]: !prev[l.id] }))}
+          >
+            <Text style={[s.chipText, layers[l.id] && s.chipTextOn]}>{l.label}</Text>
+          </Pressable>
+        ))}
+      </ScrollView>
 
       <View style={s.legend}>
         {Object.entries(STATUS_COLOR).map(([k, c]) => (
@@ -83,13 +76,14 @@ export default function MapScreen() {
       </View>
 
       <View style={s.grid}>
-        {plots.map((p) => (
+        {visible.map((p) => (
           <Pressable
             key={p.id}
             style={[s.plot, { backgroundColor: STATUS_COLOR[p.status] ?? "#4A5A55" }, selected?.id === p.id && s.plotOn]}
             onPress={() => setSelected(p)}
           >
             <Text style={s.plotNo}>{p.plotNo}</Text>
+            {p.noc ? <Text style={s.noc}>NOC</Text> : null}
           </Pressable>
         ))}
       </View>
@@ -100,41 +94,50 @@ export default function MapScreen() {
           <Text style={s.cardMeta}>
             {selected.status} · {selected.areaMarla ?? "—"} Marla · {formatPrice(selected.priceAmount)}
           </Text>
+          <Text style={s.nocBadge}>{selected.noc ? "NOC approved society" : "NOC not verified — review carefully"}</Text>
         </View>
       ) : (
-        <Text style={s.hint}>Plot select karo details ke liye</Text>
+        <Text style={s.hint}>Select a plot for details</Text>
       )}
-    </SafeAreaView>
+    </Screen>
   );
 }
 
 const s = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: "#EEF1EC", padding: 16 },
-  h1: { fontSize: 24, fontWeight: "800", color: "#0F1C19" },
-  sub: { color: "#4A5A55", marginBottom: 12 },
+  h1: { fontSize: 24, fontWeight: "800", color: colors.text, marginTop: space.sm },
+  sub: { color: colors.textMuted, marginBottom: space.md },
+  layerTitle: { fontSize: 12, fontWeight: "700", color: colors.textMuted, marginBottom: 8 },
+  layerRow: { gap: 8, paddingBottom: 12 },
+  chip: {
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    backgroundColor: colors.surface,
+  },
+  chipOn: { backgroundColor: colors.primary, borderColor: colors.primary },
+  chipText: { fontSize: 12, color: colors.textMuted },
+  chipTextOn: { color: "#fff", fontWeight: "700" },
   legend: { flexDirection: "row", flexWrap: "wrap", gap: 10, marginBottom: 12 },
   legItem: { flexDirection: "row", alignItems: "center", gap: 4 },
   dot: { width: 10, height: 10, borderRadius: 5 },
-  legText: { fontSize: 11, color: "#4A5A55" },
+  legText: { fontSize: 11, color: colors.textMuted },
   grid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  plot: {
-    width: 72,
-    height: 56,
-    borderRadius: 8,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  plotOn: { borderWidth: 3, borderColor: "#0F1C19" },
+  plot: { width: 72, height: 56, borderRadius: 8, alignItems: "center", justifyContent: "center" },
+  plotOn: { borderWidth: 3, borderColor: colors.text },
   plotNo: { color: "#fff", fontWeight: "800", fontSize: 14 },
+  noc: { color: "rgba(255,255,255,0.9)", fontSize: 9, fontWeight: "700" },
   card: {
     marginTop: 16,
-    backgroundColor: "#fff",
+    backgroundColor: colors.surface,
     borderRadius: 12,
     padding: 14,
     borderWidth: 1,
-    borderColor: "rgba(15,28,25,0.1)",
+    borderColor: colors.border,
   },
-  cardTitle: { fontWeight: "800", fontSize: 16, color: "#0F1C19" },
-  cardMeta: { color: "#4A5A55", marginTop: 4 },
-  hint: { marginTop: 16, color: "#4A5A55", textAlign: "center" },
+  cardTitle: { fontWeight: "800", fontSize: 16, color: colors.text },
+  cardMeta: { color: colors.textMuted, marginTop: 4 },
+  nocBadge: { marginTop: 8, fontSize: 13, fontWeight: "600", color: colors.primary },
+  hint: { marginTop: 16, color: colors.textMuted, textAlign: "center" },
 });
