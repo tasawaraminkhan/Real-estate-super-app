@@ -15,6 +15,7 @@ import { router } from "expo-router";
 import { Screen } from "../../src/components/Screen";
 import { colors, space } from "../../src/theme/tokens";
 import { propertiesApi, API_URL } from "../../lib/api";
+import { formatPriceFromPaisa } from "../../lib/format";
 
 type Item = {
   id: string;
@@ -28,13 +29,6 @@ type Item = {
   city?: { name: string };
   society?: { name?: string };
 };
-
-function formatPrice(paisa: string) {
-  const pkr = Number(paisa) / 100;
-  if (pkr >= 10_000_000) return `PKR ${(pkr / 10_000_000).toFixed(2)} Cr`;
-  if (pkr >= 100_000) return `PKR ${(pkr / 100_000).toFixed(1)} Lac`;
-  return `PKR ${Math.round(pkr).toLocaleString()}`;
-}
 
 const CATEGORIES = [
   { id: "ALL", label: "All" },
@@ -180,7 +174,7 @@ export default function HomeScreen() {
                 >
                   <Image source={{ uri: THUMBS[idx % THUMBS.length] }} style={s.thumb} />
                   <View style={s.cardBody}>
-                    <Text style={s.price}>{formatPrice(item.priceAmount)}</Text>
+                    <Text style={s.price}>{formatPriceFromPaisa(item.priceAmount)}</Text>
                     <Text style={s.title} numberOfLines={2}>
                       {item.title}
                     </Text>

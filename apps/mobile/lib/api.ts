@@ -14,13 +14,15 @@ export function getToken() {
   return accessToken;
 }
 
-const DEMO_LISTINGS = [
+export const DEMO_LISTINGS = [
   {
     id: "demo-1",
     title: "10 Marla Plot — DHA Phase 5, Lahore",
     priceAmount: "24500000000",
     areaValue: 10,
     areaUnit: "MARLA",
+    bedrooms: undefined as number | undefined,
+    bathrooms: undefined as number | undefined,
     city: { name: "Lahore" },
     society: { name: "DHA Phase 5" },
     purpose: "SALE",
@@ -31,6 +33,8 @@ const DEMO_LISTINGS = [
     priceAmount: "18500000000",
     areaValue: 5,
     areaUnit: "MARLA",
+    bedrooms: 3,
+    bathrooms: 3,
     city: { name: "Karachi" },
     society: { name: "Bahria Town" },
     purpose: "SALE",
@@ -41,19 +45,33 @@ const DEMO_LISTINGS = [
     priceAmount: "75000000000",
     areaValue: 1,
     areaUnit: "KANAL",
+    bedrooms: 5,
+    bathrooms: 6,
     city: { name: "Islamabad" },
     society: { name: "DHA Islamabad" },
     purpose: "SALE",
   },
   {
     id: "demo-4",
-    title: "3 Marla Flat for Rent — Lahore",
+    title: "3 Marla Flat for Rent — Gulberg Lahore",
     priceAmount: "8500000",
     areaValue: 3,
     areaUnit: "MARLA",
+    bedrooms: 2,
+    bathrooms: 2,
     city: { name: "Lahore" },
-    society: { name: undefined },
+    society: { name: "Gulberg" },
     purpose: "RENT",
+  },
+  {
+    id: "demo-5",
+    title: "Shop — MM Alam Road Lahore",
+    priceAmount: "32000000000",
+    areaValue: 4,
+    areaUnit: "MARLA",
+    city: { name: "Lahore" },
+    society: { name: "MM Alam" },
+    purpose: "SALE",
   },
 ];
 
@@ -68,10 +86,27 @@ export async function api<T>(
   };
   const tok = opts.token ?? accessToken;
   if (tok) headers.Authorization = `Bearer ${tok}`;
-  const res = await fetch(`${API_URL}${path}`, { ...opts, headers });
-  const data = await res.json();
-  if (!res.ok) throw data;
-  return data as T;
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 12_000);
+  try {
+    const res = await fetch(`${API_URL}${path}`, {
+      ...opts,
+      headers,
+      signal: controller.signal,
+    });
+    const text = await res.text();
+    let data: unknown = null;
+    try {
+      data = text ? JSON.parse(text) : null;
+    } catch {
+      throw { error: { message: "Invalid server response" } };
+    }
+    if (!res.ok) throw data ?? { error: { message: `HTTP ${res.status}` } };
+    return data as T;
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 export const authApi = {
@@ -82,7 +117,7 @@ export const authApi = {
         body: JSON.stringify({ phone }),
       });
     } catch {
-      return { message: "Demo mode", devOtp: "123456" };
+      return { message: "Demo mode — use OTP 123456", devOtp: "123456" };
     }
   },
   verifyOtp: async (phone: string, code: string) => {
@@ -97,14 +132,14 @@ export const authApi = {
       setToken(res.accessToken);
       return res;
     } catch {
-      if (code === "123456" || code.length === 6) {
+      if (code === "123456" || /^\d{6}$/.test(code)) {
         setToken("demo-token");
         return {
           accessToken: "demo-token",
           user: { id: "demo", phone, role: "BUYER", fullName: "Demo User" },
         };
       }
-      throw { error: { message: "Invalid OTP — demo: 123456" } };
+      throw { error: { message: "Invalid OTP. Demo code: 123456" } };
     }
   },
 };
@@ -126,14 +161,17 @@ export const propertiesApi = {
         body: JSON.stringify(body),
       });
     } catch {
-      return { id: "demo-draft", status: "DRAFT", ...body };
+      return { id: `demo-${Date.now()}`, status: "DRAFT", ...body };
     }
   },
   submit: async (id: string) => {
     try {
       return await api(`/api/v1/properties/${id}/submit`, { method: "POST" });
     } catch {
-      return { property: { id, status: "ACTIVE" }, fraud: { score: 10, action: "auto_approve" } };
+      return {
+        property: { id, status: "ACTIVE" },
+        fraud: { score: 12, action: "auto_approve" },
+      };
     }
   },
   toggleFavourite: async (id: string) => {
@@ -147,14 +185,4 @@ export const propertiesApi = {
   },
 };
 
-export const billingApi = {
-  plans: async () => {
-    try {
-      return await api<unknown[]>("/api/v1/billing/plans");
-    } catch {
-      return null;
-    }
-  },
-};
-
-export { API_URL, DEMO_LISTINGS };
+export { API_URL };

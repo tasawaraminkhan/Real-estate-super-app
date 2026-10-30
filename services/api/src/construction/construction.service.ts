@@ -47,7 +47,9 @@ export class ConstructionService {
           ? input.areaValue * 20 * MARLA_SQFT
           : input.areaUnit === "SQFT"
             ? input.areaValue
-            : input.areaValue * MARLA_SQFT;
+            : input.areaUnit === "SQYD"
+              ? input.areaValue * 9
+              : input.areaValue * MARLA_SQFT;
 
     const floors = input.floors ?? 1;
     const factors = FACTORS[input.constructionType];
