@@ -70,3 +70,12 @@ Detail + Chat screens from listing tap.
 ## Design
 
 Primary `#0D6B5F` · background `#EEF1EC` · prices monospace-friendly formatting in UI.
+
+
+## Share & Play Store
+
+- Privacy: `docs/PRIVACY_POLICY.md` (host on HTTPS for Play Console)
+- Listing copy & checklist: `docs/PLAY_STORE.md`
+- Mobile version **1.0.0** · package `com.propverse.app`
+- Preview APK: GitHub Actions → **propverse-apk**
+- Production AAB: `cd apps/mobile && eas build -p android --profile production`

@@ -156,7 +156,7 @@ export default function HomeScreen() {
         </ScrollView>
 
         <Text style={s.section}>
-          {items.length} listings{!API_URL ? " · demo" : ""}
+          {items.length} listing{items.length === 1 ? "" : "s"}
         </Text>
 
         {loading ? (

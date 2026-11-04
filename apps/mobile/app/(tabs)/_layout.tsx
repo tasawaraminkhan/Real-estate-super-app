@@ -1,9 +1,13 @@
 import { Tabs } from "expo-router";
-import { Text, StyleSheet } from "react-native";
+import { Text, StyleSheet, View } from "react-native";
 import { colors } from "../../src/theme/tokens";
 
-function TabLabel({ label, focused }: { label: string; focused: boolean }) {
-  return <Text style={[styles.tab, focused && styles.tabOn]}>{label}</Text>;
+function TabIcon({ symbol, focused }: { symbol: string; focused: boolean }) {
+  return (
+    <View style={styles.iconWrap}>
+      <Text style={[styles.icon, focused && styles.iconOn]}>{symbol}</Text>
+    </View>
+  );
 }
 
 export default function TabsLayout() {
@@ -14,14 +18,45 @@ export default function TabsLayout() {
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.textMuted,
         tabBarStyle: styles.bar,
-        tabBarLabelStyle: { fontSize: 10, fontWeight: "600" },
+        tabBarLabelStyle: styles.label,
+        tabBarHideOnKeyboard: true,
       }}
     >
-      <Tabs.Screen name="home" options={{ title: "Home", tabBarIcon: ({ focused }) => <TabLabel label="Home" focused={focused} /> }} />
-      <Tabs.Screen name="map" options={{ title: "Map", tabBarIcon: ({ focused }) => <TabLabel label="Map" focused={focused} /> }} />
-      <Tabs.Screen name="estimate" options={{ title: "Cost", tabBarIcon: ({ focused }) => <TabLabel label="Cost" focused={focused} /> }} />
-      <Tabs.Screen name="create" options={{ title: "Sell", tabBarIcon: ({ focused }) => <TabLabel label="Sell" focused={focused} /> }} />
-      <Tabs.Screen name="leads" options={{ title: "Leads", tabBarIcon: ({ focused }) => <TabLabel label="Leads" focused={focused} /> }} />
+      <Tabs.Screen
+        name="home"
+        options={{
+          title: "Home",
+          tabBarIcon: ({ focused }) => <TabIcon symbol="⌂" focused={focused} />,
+        }}
+      />
+      <Tabs.Screen
+        name="map"
+        options={{
+          title: "Map",
+          tabBarIcon: ({ focused }) => <TabIcon symbol="◎" focused={focused} />,
+        }}
+      />
+      <Tabs.Screen
+        name="estimate"
+        options={{
+          title: "Cost",
+          tabBarIcon: ({ focused }) => <TabIcon symbol="▣" focused={focused} />,
+        }}
+      />
+      <Tabs.Screen
+        name="create"
+        options={{
+          title: "Sell",
+          tabBarIcon: ({ focused }) => <TabIcon symbol="＋" focused={focused} />,
+        }}
+      />
+      <Tabs.Screen
+        name="leads"
+        options={{
+          title: "Leads",
+          tabBarIcon: ({ focused }) => <TabIcon symbol="☰" focused={focused} />,
+        }}
+      />
       <Tabs.Screen name="plans" options={{ href: null }} />
     </Tabs>
   );
@@ -29,13 +64,16 @@ export default function TabsLayout() {
 
 const styles = StyleSheet.create({
   bar: {
-    backgroundColor: colors.surface,
-    height: 60,
+    backgroundColor: "#FFFFFF",
+    height: 58,
     paddingBottom: 6,
     paddingTop: 4,
-    borderTopColor: colors.border,
+    borderTopColor: "rgba(15,28,25,0.12)",
     borderTopWidth: StyleSheet.hairlineWidth,
+    elevation: 8,
   },
-  tab: { fontSize: 10, color: colors.textMuted, fontWeight: "500" },
-  tabOn: { color: colors.primary, fontWeight: "700" },
+  label: { fontSize: 11, fontWeight: "600", marginBottom: 2 },
+  iconWrap: { alignItems: "center", justifyContent: "center", minHeight: 22 },
+  icon: { fontSize: 18, color: colors.textMuted, lineHeight: 22 },
+  iconOn: { color: colors.primary },
 });
