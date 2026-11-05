@@ -2,12 +2,12 @@
   "expo": {
     "name": "PropVerse",
     "slug": "propverse",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
     "scheme": "propverse",
     "userInterfaceStyle": "light",
     "newArchEnabled": false,
-    "description": "PropVerse — Pakistan real estate: buy, sell, rent, construction cost, legal checks, and leads in one app.",
+    "description": "PropVerse \u2014 Pakistan real estate: buy, sell, rent, construction cost, legal checks, and leads in one app.",
     "primaryColor": "#0D6B5F",
     "splash": {
       "backgroundColor": "#0D6B5F",
@@ -15,7 +15,7 @@
     },
     "android": {
       "package": "com.propverse.app",
-      "versionCode": 2,
+      "versionCode": 3,
       "adaptiveIcon": {
         "backgroundColor": "#0D6B5F"
       },
@@ -37,10 +37,16 @@
         "NSUserTrackingUsageDescription": "Not used. PropVerse does not track users across apps."
       }
     },
-    "plugins": ["expo-router"],
+    "plugins": [
+      "expo-router"
+    ],
     "extra": {
-      "router": { "origin": false },
-      "eas": { "projectId": "propverse-local" }
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "propverse-local"
+      }
     },
     "privacy": "public"
   }

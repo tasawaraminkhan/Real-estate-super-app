@@ -9,13 +9,14 @@ import {
   TextInput,
   ScrollView,
   Image,
-  Linking,
+  
 } from "react-native";
 import { router } from "expo-router";
 import { Screen } from "../../src/components/Screen";
 import { colors, space } from "../../src/theme/tokens";
 import { propertiesApi, API_URL } from "../../lib/api";
 import { formatPriceFromPaisa } from "../../lib/format";
+import { openCall, openWhatsApp } from "../../lib/contact";
 
 type Item = {
   id: string;
@@ -187,13 +188,13 @@ export default function HomeScreen() {
                     <View style={s.ctaRow}>
                       <Pressable
                         style={s.cta}
-                        onPress={() => Linking.openURL("tel:+923001234567")}
+                        onPress={() => openCall("+923001112233")}
                       >
                         <Text style={s.ctaText}>Call</Text>
                       </Pressable>
                       <Pressable
                         style={[s.cta, s.ctaWa]}
-                        onPress={() => Linking.openURL("https://wa.me/923001234567")}
+                        onPress={() => openWhatsApp("+923001112233", "Hi, interested via PropVerse")}
                       >
                         <Text style={[s.ctaText, { color: colors.success }]}>WhatsApp</Text>
                       </Pressable>
