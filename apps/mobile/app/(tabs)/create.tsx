@@ -70,14 +70,24 @@ export default function CreateScreen() {
     try {
       const unit = PRICE_UNITS.find((u) => u.id === priceUnit)!;
       const priceAmount = unit.toPaisa(num);
+      const category = ["SHOP", "OFFICE", "WAREHOUSE"].includes(type) ? "COMMERCIAL" : "RESIDENTIAL";
+      const listingTitle =
+        title.trim() || `${area} ${areaUnit} ${type} — ${society || resolvedCity}`;
+      const description = [
+        listingTitle,
+        society && `Society: ${society}`,
+        address && `Address: ${address}`,
+        `City: ${resolvedCity}`,
+      ]
+        .filter(Boolean)
+        .join(". ");
+
       const draft = await propertiesApi.createDraft({
         purpose,
-        category: ["SHOP", "OFFICE", "WAREHOUSE"].includes(type) ? "COMMERCIAL" : "RESIDENTIAL",
+        category,
         type,
-        title: title || `${area} ${areaUnit} ${type} — ${society || resolvedCity}`,
-        description: [title || type, society && `Society: ${society}`, address && `Address: ${address}`, `City: ${resolvedCity}`]
-          .filter(Boolean)
-          .join(". "),
+        title: listingTitle,
+        description,
         areaValue: parseFloat(area) || 1,
         areaUnit,
         priceAmount,
@@ -85,17 +95,36 @@ export default function CreateScreen() {
         priceType: "NEGOTIABLE",
         addressText: address || undefined,
       });
-      const id = String((draft as { id?: string }).id ?? "demo");
-      const submitted = await propertiesApi.submit(id);
-      const status = (submitted as { property?: { status?: string } })?.property?.status ?? "ACTIVE";
-      Alert.alert("Listing submitted", `ID: ${id}\n${resolvedCity} · ${area} ${areaUnit}\nStatus: ${status}`);
+      const id = String((draft as { id?: string }).id ?? `user-${Date.now()}`);
+
+      // Pass full listing so offline/demo mode can publish it to Home & Map
+      const submitted = await propertiesApi.submit(id, {
+        title: listingTitle,
+        priceAmount: String(priceAmount),
+        areaValue: parseFloat(area) || 1,
+        areaUnit,
+        purpose,
+        category,
+        type,
+        city: { name: resolvedCity },
+        society: society ? { name: society } : undefined,
+        addressText: address || undefined,
+        description,
+      });
+      const status =
+        (submitted as { property?: { status?: string } })?.property?.status ?? "ACTIVE";
+      Alert.alert(
+        "Listing published",
+        `Your property is now live on Home and Map.\n\n${listingTitle}\n${resolvedCity} · ${area} ${areaUnit}\nStatus: ${status}`,
+        [{ text: "OK" }],
+      );
       setStep(1);
       setTitle("");
       setPriceValue("");
       setSociety("");
       setAddress("");
     } catch (e) {
-      Alert.alert("Error", JSON.stringify(e));
+      Alert.alert("Error", e instanceof Error ? e.message : JSON.stringify(e));
     } finally {
       setLoading(false);
     }

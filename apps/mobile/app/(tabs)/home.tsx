@@ -2,19 +2,18 @@ import { useCallback, useEffect, useState } from "react";
 import {
   View,
   Text,
-  FlatList,
   StyleSheet,
   ActivityIndicator,
   Pressable,
   TextInput,
   ScrollView,
   Image,
-  
 } from "react-native";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import { Screen } from "../../src/components/Screen";
 import { colors, space } from "../../src/theme/tokens";
-import { propertiesApi, API_URL } from "../../lib/api";
+import { propertiesApi } from "../../lib/api";
+import { subscribeListings } from "../../lib/listingsStore";
 import { formatPriceFromPaisa } from "../../lib/format";
 import { openCall, openWhatsApp } from "../../lib/contact";
 
@@ -78,7 +77,11 @@ export default function HomeScreen() {
           list = list.filter((i) => (i.purpose ?? "SALE") === category);
         }
         if (category === "COMMERCIAL") {
-          list = list.filter((i) => /shop|office|warehouse|commercial/i.test(i.title));
+          list = list.filter(
+            (i) =>
+              /shop|office|warehouse|commercial/i.test(i.title) ||
+              (i as { category?: string }).category === "COMMERCIAL",
+          );
         }
         const pf = PRICE_FILTERS.find((p) => p.id === priceId);
         if (pf && pf.id !== "ALL") {
@@ -100,12 +103,19 @@ export default function HomeScreen() {
         }
         setItems(list);
       })
+      .catch(() => setItems([]))
       .finally(() => setLoading(false));
   }, [category, q, priceId]);
 
-  useEffect(() => {
-    load();
-  }, [load]);
+  // Reload when tab focused (e.g. after creating a listing)
+  useFocusEffect(
+    useCallback(() => {
+      load();
+    }, [load]),
+  );
+
+  // Instant refresh when local store publishes a new listing
+  useEffect(() => subscribeListings(() => load()), [load]);
 
   return (
     <Screen padded={false}>

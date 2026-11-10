@@ -1,4 +1,9 @@
 import Constants from "expo-constants";
+import {
+  addUserListing,
+  getUserListings,
+  type ListingItem,
+} from "./listingsStore";
 
 const API_URL =
   process.env.EXPO_PUBLIC_API_URL ||
@@ -14,18 +19,20 @@ export function getToken() {
   return accessToken;
 }
 
-export const DEMO_LISTINGS = [
+export const DEMO_LISTINGS: ListingItem[] = [
   {
     id: "demo-1",
     title: "10 Marla Plot — DHA Phase 5, Lahore",
     priceAmount: "24500000000",
     areaValue: 10,
     areaUnit: "MARLA",
-    bedrooms: undefined as number | undefined,
-    bathrooms: undefined as number | undefined,
+    bedrooms: undefined,
+    bathrooms: undefined,
     city: { name: "Lahore" },
     society: { name: "DHA Phase 5" },
     purpose: "SALE",
+    latitude: 31.4697,
+    longitude: 74.4083,
   },
   {
     id: "demo-2",
@@ -38,6 +45,8 @@ export const DEMO_LISTINGS = [
     city: { name: "Karachi" },
     society: { name: "Bahria Town" },
     purpose: "SALE",
+    latitude: 25.0012,
+    longitude: 67.0685,
   },
   {
     id: "demo-3",
@@ -50,6 +59,8 @@ export const DEMO_LISTINGS = [
     city: { name: "Islamabad" },
     society: { name: "DHA Islamabad" },
     purpose: "SALE",
+    latitude: 33.5412,
+    longitude: 73.1821,
   },
   {
     id: "demo-4",
@@ -62,6 +73,8 @@ export const DEMO_LISTINGS = [
     city: { name: "Lahore" },
     society: { name: "Gulberg" },
     purpose: "RENT",
+    latitude: 31.5102,
+    longitude: 74.3441,
   },
   {
     id: "demo-5",
@@ -72,6 +85,9 @@ export const DEMO_LISTINGS = [
     city: { name: "Lahore" },
     society: { name: "MM Alam" },
     purpose: "SALE",
+    category: "COMMERCIAL",
+    latitude: 31.5201,
+    longitude: 74.3502,
   },
 ];
 
@@ -144,14 +160,24 @@ export const authApi = {
   },
 };
 
+function mergeListings(serverItems: ListingItem[]): ListingItem[] {
+  const user = getUserListings();
+  const seen = new Set(user.map((u) => u.id));
+  const rest = serverItems.filter((s) => !seen.has(s.id));
+  return [...user, ...rest];
+}
+
 export const propertiesApi = {
   list: async (page = 1) => {
     try {
-      return await api<{ items: unknown[]; pageInfo: { total: number } }>(
+      const res = await api<{ items: ListingItem[]; pageInfo: { total: number } }>(
         `/api/v1/properties?page=${page}&limit=20`,
       );
+      const items = mergeListings((res.items ?? []) as ListingItem[]);
+      return { items, pageInfo: { total: items.length, ...(res.pageInfo ?? {}) } };
     } catch {
-      return { items: DEMO_LISTINGS, pageInfo: { total: DEMO_LISTINGS.length } };
+      const items = mergeListings(DEMO_LISTINGS);
+      return { items, pageInfo: { total: items.length } };
     }
   },
   createDraft: async (body: Record<string, unknown>) => {
@@ -161,15 +187,57 @@ export const propertiesApi = {
         body: JSON.stringify(body),
       });
     } catch {
-      return { id: `demo-${Date.now()}`, status: "DRAFT", ...body };
+      const id = `user-${Date.now()}`;
+      return { id, status: "DRAFT", ...body };
     }
   },
-  submit: async (id: string) => {
+  submit: async (id: string, extra?: Partial<ListingItem>) => {
     try {
-      return await api(`/api/v1/properties/${id}/submit`, { method: "POST" });
+      const res = await api<{ property?: ListingItem }>(`/api/v1/properties/${id}/submit`, {
+        method: "POST",
+      });
+      // still mirror locally so Home refreshes even if list endpoint lags
+      if (extra) {
+        addUserListing({
+          id,
+          title: extra.title ?? "New listing",
+          priceAmount: String(extra.priceAmount ?? "0"),
+          areaValue: Number(extra.areaValue ?? 1),
+          areaUnit: extra.areaUnit ?? "MARLA",
+          purpose: extra.purpose ?? "SALE",
+          category: extra.category,
+          type: extra.type,
+          city: extra.city,
+          society: extra.society,
+          addressText: extra.addressText,
+          description: extra.description,
+          latitude: extra.latitude,
+          longitude: extra.longitude,
+          status: "ACTIVE",
+        });
+      }
+      return res;
     } catch {
+      // Demo / offline: publish into local store so it shows on Home & Map
+      const listing = addUserListing({
+        id,
+        title: extra?.title ?? "New listing",
+        priceAmount: String(extra?.priceAmount ?? "0"),
+        areaValue: Number(extra?.areaValue ?? 1),
+        areaUnit: extra?.areaUnit ?? "MARLA",
+        purpose: extra?.purpose ?? "SALE",
+        category: extra?.category,
+        type: extra?.type,
+        city: extra?.city,
+        society: extra?.society,
+        addressText: extra?.addressText,
+        description: extra?.description,
+        latitude: extra?.latitude,
+        longitude: extra?.longitude,
+        status: "ACTIVE",
+      });
       return {
-        property: { id, status: "ACTIVE" },
+        property: { ...listing, status: "ACTIVE" },
         fraud: { score: 12, action: "auto_approve" },
       };
     }
@@ -186,3 +254,4 @@ export const propertiesApi = {
 };
 
 export { API_URL };
+export type { ListingItem };
