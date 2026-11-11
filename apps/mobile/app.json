@@ -2,12 +2,12 @@
   "expo": {
     "name": "PropVerse",
     "slug": "propverse",
-    "version": "1.0.2",
+    "version": "1.0.3",
     "orientation": "portrait",
     "scheme": "propverse",
     "userInterfaceStyle": "light",
     "newArchEnabled": false,
-    "description": "PropVerse — Pakistan real estate: buy, sell, rent, construction cost, legal checks, and leads in one app.",
+    "description": "PropVerse \u2014 Pakistan real estate: buy, sell, rent, construction cost, legal checks, and leads in one app.",
     "primaryColor": "#0D6B5F",
     "splash": {
       "backgroundColor": "#0D6B5F",
@@ -15,7 +15,7 @@
     },
     "android": {
       "package": "com.propverse.app",
-      "versionCode": 4,
+      "versionCode": 5,
       "adaptiveIcon": {
         "backgroundColor": "#0D6B5F"
       },
@@ -42,13 +42,7 @@
       }
     },
     "plugins": [
-      "expo-router",
-      [
-        "react-native-maps",
-        {
-          "googleMapsApiKey": "YOUR_GOOGLE_MAPS_API_KEY"
-        }
-      ]
+      "expo-router"
     ],
     "extra": {
       "router": {
